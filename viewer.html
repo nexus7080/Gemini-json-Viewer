@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Output Viewer (published under the MIT License - ghttps://github.com/aresprom/Gemini-json-Viewer.git / @marcelamayr)</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-main">
+            <h1>Gemini JSON Viewer</h1>
+            <div class="header-meta">
+                <span>© <span id="current-year"></span> Marcel Mayr (aresprom)</span>
+                <a href="https://github.com/aresprom/Gemini-json-Viewer" target="_blank" rel="noopener noreferrer">
+                    GitHub Project
+                </a>
+            </div>
+        </div>
+        <div class="controls">
+            <input type="file" id="fileInput" accept=".txt,.json" style="display: none;">
+            <label for="fileInput" class="button-like">Load Gemini JSON File</label> <!-- Text updated -->
+        </div>
+    </header>
+
+    <div id="container">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <button id="viewCompleteDialogBtn" class="button-like button-full-width">View Complete Dialog</button>
+                <h2>Prompts</h2>
+                <input type="text" id="searchPrompts" placeholder="Search prompts...">
+            </div>
+            <div id="prompt-list">
+                <p class="placeholder">Load a file to see prompts.</p>
+            </div>
+        </aside>
+
+        <main id="main-content">
+            <!-- MOVED DETAILS SECTION HERE -->
+            <div id="details-section">
+                <div id="details-tabs">
+                    <button class="tab-link active" data-tab="tab-run-settings">Run Settings</button>
+                    <button class="tab-link" data-tab="tab-system-instruction">System Instruction</button>
+                    <button class="tab-link" data-tab="tab-citations">Citations</button>
+                </div>
+
+                <div id="tab-run-settings" class="tab-content active">
+                    <div id="run-details-container">
+                        <h3>Run Settings <button class="toggle-visibility-btn" data-target="run-details-content">[Show]</button></h3>
+                        <div id="run-details-content" class="metadata-content-box collapsible-content initially-hidden">
+                            <p class="placeholder">Load data to view.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-system-instruction" class="tab-content">
+                     <div id="system-instruction-container">
+                        <h3>System Instruction <button class="toggle-visibility-btn" data-target="system-instruction-content">[Show]</button></h3>
+                        <div id="system-instruction-content" class="metadata-content-box collapsible-content initially-hidden">
+                             <p class="placeholder">Load data to view.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-citations" class="tab-content">
+                    <div id="citations-container">
+                        <h3>Citations <button class="toggle-visibility-btn" data-target="citations-content">[Show]</button></h3>
+                        <div id="citations-content" class="metadata-content-box collapsible-content initially-hidden">
+                             <p class="placeholder">Load data to view.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- END OF MOVED DETAILS SECTION -->
+
+            <div id="answer-view">
+                <p class="placeholder">Please load an LLM output file and select a prompt from the left, or click "View Complete Dialog".</p>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="copy-confirmation" class="copy-confirmation-popup">Copied!</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.10/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/php.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: #f4f6f8;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+header {
+    background-color: #ffffff;
+    padding: 10px 20px; /* Adjusted padding slightly */
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    flex-shrink: 0;
+}
+
+.header-main {
+    display: flex;
+    align-items: baseline; /* Aligns title and meta text nicely */
+    flex-grow: 1; /* Allows it to take available space */
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.4em; /* Slightly adjusted */
+    color: #2c3e50;
+    margin-right: 20px; /* Space between title and meta info */
+}
+
+.header-meta {
+    font-size: 0.75em; /* Smaller text for meta info */
+    color: #555;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on small screens if needed */
+}
+
+.header-meta span {
+    margin-right: 15px;
+}
+
+.header-meta a {
+    color: #3498db;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.header-meta a:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+.controls {
+    /* Controls div will naturally be pushed to the right by .header-main's flex-grow */
+}
+
+.controls .button-like, .controls button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 12px; /* Slightly adjusted padding */
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85em; /* Slightly adjusted */
+    margin-left: 10px;
+    transition: background-color 0.3s ease;
+}
+
+#container {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+#sidebar {
+    width: 300px;
+    min-width: 250px;
+    background-color: #ecf0f1;
+    border-right: 1px solid #dadedf;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+}
+
+.sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid #dadedf;
+}
+.sidebar-header .button-full-width {
+    display: block;
+    width: 100%;
+    margin-bottom: 15px;
+    background-color: #2ecc71; /* Different color for emphasis */
+    font-size: 0.95em;
+}
+.sidebar-header .button-full-width:hover {
+    background-color: #27ae60;
+}
+
+
+.sidebar-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.2em;
+}
+
+#searchPrompts {
+    width: calc(100% - 20px);
+    padding: 8px 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+#prompt-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.prompt-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #dadedf;
+    font-size: 0.9em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.2s ease;
+}
+
+.prompt-item:last-child {
+    border-bottom: none;
+}
+
+.prompt-item:hover {
+    background-color: #e0e6e8;
+}
+
+.prompt-item.active {
+    background-color: #3498db;
+    color: white;
+    font-weight: bold;
+}
+
+#main-content {
+    flex-grow: 1;
+    padding: 20px;
+    background-color: #ffffff;
+    overflow-y: auto; /* Allows the entire main content to scroll if needed */
+    display: flex;
+    flex-direction: column;
+}
+
+#answer-view {
+    /* Removed flex-grow: 1; Let it take natural height or be constrained by overall layout */
+    margin-bottom: 20px;
+    border: 1px solid #eee;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #fdfdfd;
+    min-height: 150px; /* Reduced min-height slightly */
+}
+
+.placeholder {
+    color: #7f8c8d;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Ensure message specific styles are still good */
+.placeholder {
+    color: #7f8c8d;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+.message {
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.user-message {
+    background-color: #e9f5fd;
+    border-left: 5px solid #3498db;
+}
+
+.model-message {
+    background-color: #e8f6f3;
+    border-left: 5px solid #2ecc71;
+}
+
+.model-message.thought-message {
+    background-color: #fef9e7;
+    border-left: 5px solid #f1c40f;
+    font-style: italic;
+    color: #505050;
+}
+.model-message.thought-message .content {
+    color: #505050;
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.message .collapsible-header h3 {
+    margin: 0;
+    flex-grow: 1;
+    font-size: 1.1em;
+    color: #2c3e50;
+}
+
+.toggle-button, .toggle-visibility-btn {
+    background: none;
+    border: none;
+    font-size: 0.9em;
+    color: #3498db;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: 10px;
+}
+
+.message .metadata {
+    font-size: 0.8em;
+    color: #7f8c8d;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+.message .content {
+    font-size: 0.95em;
+    line-height: 1.6;
+}
+
+.message.collapsed .content,
+.message.collapsed .metadata {
+    display: none;
+}
+
+.message .content p {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+}
+.message .content p:last-child {
+    margin-bottom: 0;
+}
+
+.message .content pre {
+    position: relative;
+    background-color: #282c34;
+    color: #abb2bf;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 0.9em;
+    line-height: 1.4;
+    width: calc(100% - 30px);
+    box-sizing: border-box;
+}
+
+.message .content pre code {
+    background-color: transparent !important;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+    white-space: pre;
+}
+
+.message .content code:not(pre code) {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    background-color: #eef;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.copy-code-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    font-size: 0.8em;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+    z-index: 1;
+}
+
+.message .content pre:hover .copy-code-btn {
+    opacity: 1;
+}
+
+.copy-code-btn:active {
+    background-color: #45a049;
+}
+
+.message .content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.message .content th, .message .content td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+}
+
+.message .content th {
+    background-color: #f2f2f2;
+}
+
+.copy-confirmation-popup {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+}
+
+.copy-confirmation-popup.show {
+    opacity: 1;
+}
