@@ -2,7 +2,7 @@
 
 A browser-based tool specifically designed to view and analyze structured JSON outputs exported from Google Gemini via AI Studio. When you export your Gemini conversations (often to Google Drive), this tool helps you load that JSON file and displays the interaction data (prompts, responses, "thoughts", metadata) in an organized, readable, and searchable format.
 
-Developed by Marcel Mayr ([aresprom on GitHub](https://github.com/aresprom), [@marcelamayr on social media](https://marcelamayr.com))
+Developed by Marcel Mayr ([marcelamay on GitHub](https://github.com/marcelamay), [@marcelamayr on social media](https://marcelamayr.com))
 
 
 ![Screenshot of Gemini JSON Viewer](screenshot.png)
@@ -136,4 +136,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ---
 
-*Project by Marcel Mayr ([@aresprom on GitHub](https://github.com/aresprom) | [marcelamayr.com](https://marcelamayr.com))*
+*Project by Marcel Mayr ([@marcelamay on GitHub](https://github.com/marcelamay) | [marcelamayr.com](https://marcelamayr.com))*
