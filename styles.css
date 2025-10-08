@@ -78,9 +78,51 @@ header h1 {
     overflow: hidden;
 }
 
+#file-browser-sidebar {
+    width: 250px;
+    min-width: 200px;
+    background-color: #e1e4e8;
+    border-right: 1px solid #d1d5da;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+#file-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.file-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #d1d5da;
+    font-size: 0.9em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.2s ease;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-item:hover {
+    background-color: #d1d5da;
+}
+
+.file-item.active {
+    background-color: #0366d6;
+    color: white;
+    font-weight: bold;
+}
+
 #sidebar {
-    width: 300px;
-    min-width: 250px;
+    width: 250px; /* Adjusted width */
+    min-width: 200px; /* Adjusted min-width */
     background-color: #ecf0f1;
     border-right: 1px solid #dadedf;
     display: flex;

@@ -1,11 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
-    const viewCompleteDialogBtn = document.getElementById('viewCompleteDialogBtn');
+    const toggleViewBtn = document.getElementById('toggleViewBtn');
     const searchPromptsInput = document.getElementById('searchPrompts');
     const copyConfirmationPopup = document.getElementById('copy-confirmation');
 
+    const loadFolderBtn = document.getElementById('loadFolderBtn');
+
     let parsedData = null;
     let currentPrompts = [];
+    let fileHandles = [];
+    let isCompleteView = true;
 
     marked.setOptions({
         highlight: function(code, lang) {
@@ -55,10 +59,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    fileInput.addEventListener('change', handleFileLoad);
-    viewCompleteDialogBtn.addEventListener('click', () => {
+    fileInput.addEventListener('change', (e) => handleFileLoad(e.target.files[0]));
+    loadFolderBtn.addEventListener('click', handleFolderLoad);
+    toggleViewBtn.addEventListener('click', () => {
         if (parsedData) {
-            displayCompleteDialog();
+            isCompleteView = !isCompleteView;
+            if (isCompleteView) {
+                displayCompleteDialog();
+                toggleViewBtn.textContent = 'View Single Prompts';
+            } else {
+                displaySinglePrompts();
+                toggleViewBtn.textContent = 'View Complete Dialog';
+            }
         } else {
             alert("Please load a file first.");
         }
@@ -119,8 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function handleFileLoad(event) {
-        const file = event.target.files[0];
+    function handleFileLoad(file) {
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -135,6 +146,52 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             reader.readAsText(file);
         }
+    }
+
+    async function handleFolderLoad() {
+        try {
+            const dirHandle = await window.showDirectoryPicker();
+            fileHandles = [];
+            for await (const entry of dirHandle.values()) {
+                console.log('handleFolderLoad', entry)
+                if (entry.kind === 'file' 
+                    && !entry.name.endsWith('.png') 
+                    && !entry.name.endsWith('.pdf') 
+                    && !entry.name.endsWith('.webp')
+                    && !entry.name.endsWith('.js')
+                    && !entry.name.endsWith('.zip')
+                    ) {
+                    fileHandles.push(entry);
+                }
+            }
+            fileHandles.sort((a, b) => a.name.localeCompare(b.name))
+            populateFileList();
+        } catch (err) {
+            console.error("Error reading folder:", err);
+        }
+    }
+
+    function populateFileList() {
+        const fileListEl = document.getElementById('file-list');
+        fileListEl.innerHTML = '';
+        if (fileHandles.length === 0) {
+            fileListEl.innerHTML = '<p class="placeholder">No JSON files found.</p>';
+            return;
+        }
+        fileHandles.forEach((handle, index) => {
+            const listItem = document.createElement('div');
+            listItem.classList.add('file-item');
+            listItem.textContent = handle.name;
+            listItem.title = handle.name;
+            listItem.dataset.index = index;
+            listItem.onclick = async () => {
+                const file = await handle.getFile();
+                handleFileLoad(file);
+                document.querySelectorAll('#file-list .file-item').forEach(item => item.classList.remove('active'));
+                listItem.classList.add('active');
+            };
+            fileListEl.appendChild(listItem);
+        });
     }
 
     function processLlmOutput() {
@@ -158,6 +215,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         populatePromptList();
+        displayCompleteDialog();
+        isCompleteView = true;
+        toggleViewBtn.textContent = 'View Single Prompts';
+    }
+
+    function displaySinglePrompts() {
         if (currentPrompts.length > 0) {
             displayPromptAndAnswer(0);
         } else {
@@ -177,17 +240,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const listItem = document.createElement('div');
             listItem.classList.add('prompt-item');
             listItem.textContent = truncateText(prompt.text, 60);
-            listItem.title = prompt.text.substring(0, 200) + (prompt.text.length > 200 ? '...' : '');
+            listItem.title = prompt.text?.substring(0, 200) + (prompt.text?.length > 200 ? '...' : '');
             listItem.setAttribute('data-full-text', prompt.text);
             listItem.dataset.index = index;
-            listItem.onclick = () => displayPromptAndAnswer(index);
+            listItem.onclick = () => {
+                if (isCompleteView) {
+                    const messageToScrollTo = document.querySelector(`[data-chunk-index="${prompt.originalIndexInChunks}"]`);
+                    if (messageToScrollTo) {
+                        messageToScrollTo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        document.querySelectorAll('#prompt-list .prompt-item').forEach(item => item.classList.remove('active'));
+                        listItem.classList.add('active');
+                    }
+                } else {
+                    displayPromptAndAnswer(index);
+                }
+            };
             promptListEl.appendChild(listItem);
         });
     }
 
-    function createMessageDiv(chunk, isInitiallyCollapsed = false) {
+    function createMessageDiv(chunk, chunkIndex, isInitiallyCollapsed = false) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message');
+        messageDiv.dataset.chunkIndex = chunkIndex;
         
         // Determine message type and header text based on chunk.role
         let headerText = 'Unknown Role';
@@ -268,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#prompt-list .prompt-item').forEach((item, idx) => {
             item.classList.toggle('active', idx === parseInt(item.dataset.index) && idx === promptIndex);
         });
-        document.getElementById('viewCompleteDialogBtn').classList.remove('active');
+        document.getElementById('toggleViewBtn').classList.remove('active');
 
         const answerViewEl = document.getElementById('answer-view');
         answerViewEl.innerHTML = '';
@@ -276,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedUserPrompt = currentPrompts[promptIndex]; // This now has role: 'user'
         const originalChunkIndex = selectedUserPrompt.originalIndexInChunks;
 
-        const promptDiv = createMessageDiv(selectedUserPrompt, false);
+        const promptDiv = createMessageDiv(selectedUserPrompt, originalChunkIndex, false);
         answerViewEl.appendChild(promptDiv);
         
         const allChunks = parsedData.chunkedPrompt.chunks;
@@ -286,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (chunk.role === 'model') {
                 modelResponseFound = true;
                 const isThought = chunk.isThought || false;
-                const modelDiv = createMessageDiv(chunk, isThought);
+                const modelDiv = createMessageDiv(chunk, i, isThought);
                 answerViewEl.appendChild(modelDiv);
             } else if (chunk.role === 'user') {
                 break;
@@ -306,17 +381,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         document.querySelectorAll('#prompt-list .prompt-item.active').forEach(item => item.classList.remove('active'));
-        document.getElementById('viewCompleteDialogBtn').classList.add('active');
+        document.getElementById('toggleViewBtn').classList.add('active');
 
         const answerViewEl = document.getElementById('answer-view');
         answerViewEl.innerHTML = '<h2>Complete Dialog</h2>';
 
-        parsedData.chunkedPrompt.chunks.forEach(chunk => {
+        parsedData.chunkedPrompt.chunks.forEach((chunk, index) => {
             const isUserPrompt = chunk.role === 'user';
             const isThought = chunk.role === 'model' && (chunk.isThought || false);
             // In complete dialog, user prompts are expanded, thoughts are collapsed by default.
             // Regular model responses are also expanded.
-            const messageDiv = createMessageDiv(chunk, isThought); 
+            const messageDiv = createMessageDiv(chunk, index, isThought); 
             answerViewEl.appendChild(messageDiv);
         });
     }

@@ -21,13 +21,22 @@
         <div class="controls">
             <input type="file" id="fileInput" accept=".txt,.json" style="display: none;">
             <label for="fileInput" class="button-like">Load Gemini JSON File</label> <!-- Text updated -->
+            <button id="loadFolderBtn" class="button-like">Load Folder</button>
         </div>
     </header>
 
     <div id="container">
+        <aside id="file-browser-sidebar">
+            <div class="sidebar-header">
+                <h2>Files</h2>
+            </div>
+            <div id="file-list">
+                <p class="placeholder">Load a folder to see files.</p>
+            </div>
+        </aside>
         <aside id="sidebar">
             <div class="sidebar-header">
-                <button id="viewCompleteDialogBtn" class="button-like button-full-width">View Complete Dialog</button>
+                <button id="toggleViewBtn" class="button-like button-full-width" style="display: none;">View Complete Dialog</button>
                 <h2>Prompts</h2>
                 <input type="text" id="searchPrompts" placeholder="Search prompts...">
             </div>
