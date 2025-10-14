@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPrompts = [];
     let fileHandles = [];
     let isCompleteView = true;
+    let fileTags = {};
+    let allTags = [];
+
+    loadTags();
 
     marked.setOptions({
         highlight: function(code, lang) {
@@ -138,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     parsedData = JSON.parse(e.target.result);
                     processLlmOutput();
+                    renderTagManager(file.name);
                 } catch (error) {
                     console.error("Error parsing JSON:", error);
                     document.getElementById('answer-view').innerHTML = `<p class="placeholder error">Error parsing file. Please ensure it's valid JSON.</p>`;
@@ -166,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             fileHandles.sort((a, b) => a.name.localeCompare(b.name))
             populateFileList();
+            renderTags();
         } catch (err) {
             console.error("Error reading folder:", err);
         }
@@ -181,9 +187,26 @@ document.addEventListener('DOMContentLoaded', () => {
         fileHandles.forEach((handle, index) => {
             const listItem = document.createElement('div');
             listItem.classList.add('file-item');
-            listItem.textContent = handle.name;
             listItem.title = handle.name;
             listItem.dataset.index = index;
+
+            const tagsContainer = document.createElement('div');
+            tagsContainer.classList.add('file-item-tags');
+            const tags = fileTags[handle.name] || [];
+            tags.forEach(tag => {
+                const tagEl = document.createElement('span');
+                tagEl.classList.add('file-item-tag');
+                tagEl.textContent = tag;
+                tagEl.style.backgroundColor = getTagColor(tag);
+                tagsContainer.appendChild(tagEl);
+            });
+
+            const fileNameEl = document.createElement('span');
+            fileNameEl.textContent = handle.name;
+
+            listItem.appendChild(tagsContainer);
+            listItem.appendChild(fileNameEl);
+
             listItem.onclick = async () => {
                 const file = await handle.getFile();
                 handleFileLoad(file);
@@ -512,5 +535,153 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clickedButton) {
             clickedButton.classList.add("active");
         }
+    }
+
+    function loadTags() {
+        const storedFileTags = localStorage.getItem('fileTags');
+        const storedAllTags = localStorage.getItem('allTags');
+        if (storedFileTags) {
+            fileTags = JSON.parse(storedFileTags);
+        }
+        if (storedAllTags) {
+            allTags = JSON.parse(storedAllTags);
+        }
+        renderTags();
+    }
+
+    function saveTags() {
+        localStorage.setItem('fileTags', JSON.stringify(fileTags));
+        localStorage.setItem('allTags', JSON.stringify(allTags));
+    }
+
+    function renderTagManager(fileName) {
+        const tagManagerContainer = document.getElementById('file-tags-manager');
+        const tags = fileTags[fileName] || [];
+
+        let tagsHtml = tags.map(tag => `
+            <div class="tag-badge">
+                ${tag}
+                <button class="remove-tag-btn" data-tag="${tag}" data-file="${fileName}">&times;</button>
+            </div>
+        `).join('');
+
+        tagManagerContainer.innerHTML = `
+            <div class="tag-manager-container">
+                <h3>Tags for ${fileName}</h3>
+                <div class="current-tags">${tagsHtml}</div>
+                <div class="add-tag-form">
+                    <input type="text" id="new-tag-for-file" placeholder="Add a new tag...">
+                    <button id="add-tag-to-file-btn">Add Tag</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('add-tag-to-file-btn').addEventListener('click', () => {
+            const newTagInput = document.getElementById('new-tag-for-file');
+            const newTag = newTagInput.value.trim();
+            if (newTag) {
+                if (!fileTags[fileName]) {
+                    fileTags[fileName] = [];
+                }
+                if (!fileTags[fileName].includes(newTag)) {
+                    fileTags[fileName].push(newTag);
+                    fileTags[fileName].sort();
+                    if (!allTags.includes(newTag)) {
+                        allTags.push(newTag);
+                        allTags.sort();
+                    }
+                    saveTags();
+                    renderTagManager(fileName);
+                    renderTags();
+                    populateFileList();
+                }
+                newTagInput.value = '';
+            }
+        });
+
+        tagManagerContainer.querySelectorAll('.remove-tag-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tagToRemove = e.target.dataset.tag;
+                const file = e.target.dataset.file;
+
+                const checkbox = document.querySelector(`#tags-list input[data-tag="${tagToRemove}"]`);
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+
+                fileTags[file] = fileTags[file].filter(t => t !== tagToRemove);
+                saveTags();
+                renderTagManager(file);
+                filterFiles();
+                renderTags();
+                populateFileList();
+            });
+        });
+    }
+
+    function renderTags() {
+        const tagsListEl = document.getElementById('tags-list');
+        tagsListEl.innerHTML = '';
+
+        const loadedFiles = fileHandles.map(handle => handle.name);
+        const usedTags = new Set();
+        loadedFiles.forEach(fileName => {
+            if (fileTags[fileName]) {
+                fileTags[fileName].forEach(tag => usedTags.add(tag));
+            }
+        });
+
+        const sortedTags = Array.from(usedTags).sort();
+
+        if (sortedTags.length === 0) {
+            tagsListEl.innerHTML = '<p class="placeholder">No tags yet.</p>';
+            return;
+        }
+
+        sortedTags.forEach(tag => {
+            const tagEl = document.createElement('div');
+            tagEl.classList.add('tag-item');
+            tagEl.innerHTML = `
+                <input type="checkbox" data-tag="${tag}">
+                <span>${tag}</span>
+            `;
+            tagsListEl.appendChild(tagEl);
+        });
+    }
+
+    document.getElementById('tags-list').addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') {
+            filterFiles();
+        }
+    });
+
+    function filterFiles() {
+        const selectedTags = Array.from(document.querySelectorAll('#tags-list input[type="checkbox"]:checked')).map(cb => cb.dataset.tag);
+        const fileItems = document.querySelectorAll('#file-list .file-item');
+
+        fileItems.forEach(item => {
+            const fileName = item.title;
+            const tagsForFile = fileTags[fileName] || [];
+            const hasAllTags = selectedTags.every(tag => tagsForFile.includes(tag));
+
+            if (selectedTags.length === 0 || hasAllTags) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function getTagColor(tag) {
+        let hash = 0;
+        for (let i = 0; i < tag.length; i++) {
+            hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        let color = '#';
+        for (let i = 0; i < 3; i++) {
+            let value = (hash >> (i * 8)) & 0xFF;
+            color += ('00' + value.toString(16)).substr(-2);
+        }
+        return color;
     }
 });

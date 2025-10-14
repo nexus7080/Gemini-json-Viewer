@@ -27,17 +27,22 @@
 
     <div id="container">
         <aside id="file-browser-sidebar">
-            <div class="sidebar-header">
+            <div class="sidebar-header" style="display: none;">
                 <h2>Files</h2>
             </div>
             <div id="file-list">
                 <p class="placeholder">Load a folder to see files.</p>
             </div>
+            <div id="tags-section">
+                <div id="tags-list">
+                    <p class="placeholder">No tags yet.</p>
+                </div>
+            </div>
         </aside>
         <aside id="sidebar">
             <div class="sidebar-header">
                 <button id="toggleViewBtn" class="button-like button-full-width" style="display: none;">View Complete Dialog</button>
-                <h2>Prompts</h2>
+                <h2 style="display: none">Prompts</h2>
                 <input type="text" id="searchPrompts" placeholder="Search prompts...">
             </div>
             <div id="prompt-list">
@@ -46,6 +51,7 @@
         </aside>
 
         <main id="main-content">
+            <div id="file-tags-manager"></div>
             <!-- MOVED DETAILS SECTION HERE -->
             <div id="details-section">
                 <div id="details-tabs">
