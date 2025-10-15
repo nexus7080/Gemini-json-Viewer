@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyConfirmationPopup = document.getElementById('copy-confirmation');
 
     const loadFolderBtn = document.getElementById('loadFolderBtn');
+    const loadFromGoogleDriveBtn = document.getElementById('loadFromGoogleDriveBtn');
+
 
     let parsedData = null;
     let currentPrompts = [];
@@ -13,17 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let fileTags = {};
     let allTags = [];
 
+    const fileCache = new Map();
+
     loadTags();
 
     marked.setOptions({
         highlight: function(code, lang) {
             const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-            // console.log(`Highlighting: lang=${lang}, resolved_lang=${language}`);
             try {
                 return hljs.highlight(code, { language, ignoreIllegals: true }).value;
             } catch (e) {
-                // console.error("Highlighting error:", e, "Lang:", language, "Code:", code.substring(0,100));
-                return hljs.highlight(code, { language: 'plaintext', ignoreIllegals: true }).value; // Fallback
+                return hljs.highlight(code, { language: 'plaintext', ignoreIllegals: true }).value;
             }
         },
         pedantic: false,
@@ -35,28 +37,24 @@ document.addEventListener('DOMContentLoaded', () => {
         xhtml: false
     });
 
-    // Initialize with the first tab open
     const firstTabButton = document.querySelector('#details-tabs .tab-link');
     if (firstTabButton) {
         openTab(null, firstTabButton.dataset.tab, firstTabButton);
 
-        // Initialize visibility and button text for ALL metadata sections
         document.querySelectorAll('.toggle-visibility-btn').forEach(btn => {
             const targetId = btn.dataset.target;
             const contentElement = document.getElementById(targetId);
             if (contentElement) {
-                // Check the 'initially-hidden' class first, then the actual display style
                 const isInitiallyHiddenByClass = contentElement.classList.contains('initially-hidden');
                 const isHiddenByStyle = contentElement.style.display === 'none';
 
                 if (isInitiallyHiddenByClass) {
-                    contentElement.style.display = 'none'; // Ensure JS respects the initial class if not already set by style
+                    contentElement.style.display = 'none';
                     btn.textContent = '[Show]';
                 } else if (isHiddenByStyle) {
                      btn.textContent = '[Show]';
                 }
                 else {
-                    // If it's not hidden by class or style (meaning it's visible)
                     btn.textContent = '[Hide]';
                 }
             }
@@ -65,6 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fileInput.addEventListener('change', (e) => handleFileLoad(e.target.files[0]));
     loadFolderBtn.addEventListener('click', handleFolderLoad);
+    loadFromGoogleDriveBtn.addEventListener('click', handleGoogleDriveLoad);
+    
     toggleViewBtn.addEventListener('click', () => {
         if (parsedData) {
             isCompleteView = !isCompleteView;
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const preElement = event.target.closest('pre');
             if (preElement) {
                 const codeElement = preElement.querySelector('code');
-                const codeToCopy = codeElement ? codeElement.innerText : preElement.innerText; // Prefer code tag's text
+                const codeToCopy = codeElement ? codeElement.innerText : preElement.innerText;
                 navigator.clipboard.writeText(codeToCopy).then(() => {
                     showCopyConfirmation();
                 }).catch(err => {
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         const collapsibleHeader = event.target.closest('.collapsible-header');
-        if (collapsibleHeader) { // Check if the click was on or within a header
+        if (collapsibleHeader) {
             const messageDiv = collapsibleHeader.closest('.message');
             if (messageDiv) {
                 toggleCollapsibleMessage(messageDiv);
@@ -158,18 +158,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const dirHandle = await window.showDirectoryPicker();
             fileHandles = [];
             for await (const entry of dirHandle.values()) {
-                console.log('handleFolderLoad', entry)
-                if (entry.kind === 'file' 
-                    && !entry.name.endsWith('.png') 
-                    && !entry.name.endsWith('.pdf') 
-                    && !entry.name.endsWith('.webp')
-                    && !entry.name.endsWith('.js')
-                    && !entry.name.endsWith('.zip')
-                    ) {
-                    fileHandles.push(entry);
+                if (entry.kind === 'file' && !entry.name.endsWith('.png') && !entry.name.endsWith('.pdf') && !entry.name.endsWith('.webp') && !entry.name.endsWith('.js') && !entry.name.endsWith('.zip')) {
+                    const file = await entry.getFile();
+                    fileHandles.push({
+                        name: file.name,
+                        handle: entry,
+                        modifiedTime: file.lastModified,
+                        getFile: () => file
+                    });
                 }
             }
-            fileHandles.sort((a, b) => a.name.localeCompare(b.name))
+            sortFiles();
             populateFileList();
             renderTags();
         } catch (err) {
@@ -208,13 +207,42 @@ document.addEventListener('DOMContentLoaded', () => {
             listItem.appendChild(fileNameEl);
 
             listItem.onclick = async () => {
-                const file = await handle.getFile();
-                handleFileLoad(file);
+                if (handle.isGoogleDrive) {
+                    await loadGoogleDriveFileContent(handle);
+                } else {
+                    const file = await handle.getFile();
+                    handleFileLoad(file);
+                }
                 document.querySelectorAll('#file-list .file-item').forEach(item => item.classList.remove('active'));
                 listItem.classList.add('active');
             };
             fileListEl.appendChild(listItem);
         });
+    }
+
+    const sortAlphaBtn = document.getElementById('sort-alpha-btn');
+    const sortDateBtn = document.getElementById('sort-date-btn');
+
+    sortAlphaBtn.addEventListener('click', () => {
+        sortFiles('alphabetical');
+        sortAlphaBtn.classList.add('active');
+        sortDateBtn.classList.remove('active');
+        populateFileList();
+    });
+
+    sortDateBtn.addEventListener('click', () => {
+        sortFiles('modifiedDate');
+        sortDateBtn.classList.add('active');
+        sortAlphaBtn.classList.remove('active');
+        populateFileList();
+    });
+
+    function sortFiles(sortBy = 'alphabetical') {
+        if (sortBy === 'alphabetical') {
+            fileHandles.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (sortBy === 'modifiedDate') {
+            fileHandles.sort((a, b) => b.modifiedTime - a.modifiedTime);
+        }
     }
 
     function processLlmOutput() {
@@ -228,9 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const chunks = parsedData.chunkedPrompt?.chunks || [];
         for (let i = 0; i < chunks.length; i++) {
             if (chunks[i].role === 'user') {
-                // Ensure the 'role' property is explicitly set for currentPrompts items
                 currentPrompts.push({
-                    role: 'user', // <<< ADDED THIS
+                    role: 'user',
                     text: chunks[i].text,
                     tokenCount: chunks[i].tokenCount,
                     originalIndexInChunks: i
@@ -287,7 +314,6 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.classList.add('message');
         messageDiv.dataset.chunkIndex = chunkIndex;
         
-        // Determine message type and header text based on chunk.role
         let headerText = 'Unknown Role';
         if (chunk.role === 'user') {
             messageDiv.classList.add('user-message');
@@ -311,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toggleBtn = document.createElement('button');
         toggleBtn.classList.add('toggle-button');
-        // User prompts are generally not collapsed by default unless it's in complete dialog
         toggleBtn.textContent = isInitiallyCollapsed ? '[+]' : '[-]';
         headerDiv.appendChild(toggleBtn);
         
@@ -330,15 +355,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         contentDiv.querySelectorAll('pre').forEach(pre => {
             addCopyButtonToPre(pre);
-            // Ensure code tag exists for highlight.js, if not, wrap pre content
             let codeTag = pre.querySelector('code');
             if (!codeTag) {
                 const preContent = pre.innerHTML;
-                pre.innerHTML = ''; // Clear current content
+                pre.innerHTML = '';
                 codeTag = document.createElement('code');
-                // If preContent was already HTML (e.g., from marked), set innerHTML
-                // Otherwise, if it's plain text, set textContent
-                // For safety and simplicity with marked output, assume it's HTML-ish
                 codeTag.innerHTML = preContent;
                 pre.appendChild(codeTag);
             }
@@ -371,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const answerViewEl = document.getElementById('answer-view');
         answerViewEl.innerHTML = '';
 
-        const selectedUserPrompt = currentPrompts[promptIndex]; // This now has role: 'user'
+        const selectedUserPrompt = currentPrompts[promptIndex];
         const originalChunkIndex = selectedUserPrompt.originalIndexInChunks;
 
         const promptDiv = createMessageDiv(selectedUserPrompt, originalChunkIndex, false);
@@ -412,15 +433,13 @@ document.addEventListener('DOMContentLoaded', () => {
         parsedData.chunkedPrompt.chunks.forEach((chunk, index) => {
             const isUserPrompt = chunk.role === 'user';
             const isThought = chunk.role === 'model' && (chunk.isThought || false);
-            // In complete dialog, user prompts are expanded, thoughts are collapsed by default.
-            // Regular model responses are also expanded.
             const messageDiv = createMessageDiv(chunk, index, isThought); 
             answerViewEl.appendChild(messageDiv);
         });
     }
 
     function addCopyButtonToPre(preElement) {
-        if (preElement.querySelector('.copy-code-btn')) return; // Don't add if already exists
+        if (preElement.querySelector('.copy-code-btn')) return;
         const copyButton = document.createElement('button');
         copyButton.classList.add('copy-code-btn');
         copyButton.textContent = 'Copy';
@@ -446,7 +465,6 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const key in settings) {
             let value = settings[key];
             if (typeof value === 'object') {
-                // Wrap JSON in pre/code for potential highlighting by Highlight.js
                 value = `<pre><code class="language-json">${DOMPurify.sanitize(JSON.stringify(value, null, 2))}</code></pre>`;
             } else {
                 value = DOMPurify.sanitize(value.toString());
@@ -479,33 +497,11 @@ document.addEventListener('DOMContentLoaded', () => {
         el.innerHTML = '';
         let contentToDisplay = '<p class="placeholder">No system instruction provided.</p>';
         if (instruction) {
-            let textToParse = '';
-            if (instruction.parts && Array.isArray(instruction.parts) && instruction.parts.length > 0) {
-                textToParse = instruction.parts.map(p => p.text || '').join('\n');
-            } else if (typeof instruction.text === 'string' && instruction.text.trim()) {
-                textToParse = instruction.text;
-            } else if (Object.keys(instruction).length > 0 && !(instruction.parts && instruction.parts.length === 0)) {
-                textToParse = '```json\n' + JSON.stringify(instruction, null, 2) + '\n```';
-            }
-
-            if (textToParse.trim()) {
-                contentToDisplay = `<div class="content">${DOMPurify.sanitize(marked.parse(textToParse))}</div>`;
-            }
+            let textToParse = JSON.stringify(instruction, null, 2);
+            contentToDisplay = `<pre><code class="language-json">${textToParse}</code></pre>`;
         }
         el.innerHTML = contentToDisplay;
-        // Highlight any code blocks parsed by marked
-        el.querySelectorAll('pre').forEach(pre => {
-            addCopyButtonToPre(pre); // Add copy button
-            let codeTag = pre.querySelector('code');
-            if (!codeTag) { // Ensure code tag exists
-                const preContent = pre.innerHTML;
-                pre.innerHTML = '';
-                codeTag = document.createElement('code');
-                codeTag.innerHTML = preContent;
-                pre.appendChild(codeTag);
-            }
-            hljs.highlightElement(codeTag);
-        });
+        el.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
     }
 
     function truncateText(text, maxLength) {
@@ -634,7 +630,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortedTags = Array.from(usedTags).sort();
 
         if (sortedTags.length === 0) {
-            tagsListEl.innerHTML = '<p class="placeholder">No tags yet.</p>';
             return;
         }
 
@@ -683,5 +678,157 @@ document.addEventListener('DOMContentLoaded', () => {
             color += ('00' + value.toString(16)).substr(-2);
         }
         return color;
+    }
+
+    // Google Drive Integration
+    let tokenClient;
+    let accessToken;
+    let gapiInited = false;
+    let gisInited = false;
+
+    const CLIENT_ID = 'YOUR_CLIENT_ID';
+    const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+    const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+
+    function handleGoogleDriveLoad() {
+        if (!CLIENT_ID || CLIENT_ID === 'YOUR_CLIENT_ID') {
+            alert('Please replace "YOUR_CLIENT_ID" in script.js with your Google Client ID.');
+            return;
+        }
+        loadGoogleDriveAPI();
+    }
+
+    function loadGoogleDriveAPI() {
+        const gapiScript = document.createElement('script');
+        gapiScript.src = 'https://apis.google.com/js/api.js';
+        gapiScript.onload = gapiLoaded;
+        document.body.appendChild(gapiScript);
+
+        const gisScript = document.createElement('script');
+        gisScript.src = 'https://accounts.google.com/gsi/client';
+        gisScript.onload = gisLoaded;
+        document.body.appendChild(gisScript);
+    }
+
+    function gapiLoaded() {
+        gapi.load('client', async () => {
+            await gapi.client.init({
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            gapiInited = true;
+            if (gisInited) {
+                handleAuthClick();
+            }
+        });
+    }
+
+    function gisLoaded() {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: (tokenResponse) => {
+                accessToken = tokenResponse.access_token;
+                findAndLoadGoogleAiStudioFolder();
+            },
+        });
+        gisInited = true;
+        if (gapiInited) {
+            handleAuthClick();
+        }
+    }
+
+    function handleAuthClick() {
+        if (accessToken) {
+            findAndLoadGoogleAiStudioFolder();
+        } else {
+            tokenClient.requestAccessToken({prompt: 'consent'});
+        }
+    }
+
+    async function findAndLoadGoogleAiStudioFolder() {
+        try {
+            const res = await gapi.client.drive.files.list({
+                q: "mimeType='application/vnd.google-apps.folder' and name='Google AI Studio'",
+                fields: 'files(id, name)',
+            });
+
+            if (res.result.files && res.result.files.length > 0) {
+                let newFileHandles = [];
+                for (const folder of res.result.files) {
+                    console.log("Found 'Google AI Studio' folder with ID:", folder.id);
+                    const handles = await loadFolderContents(folder.id);
+                    newFileHandles = newFileHandles.concat(handles);
+                }
+                fileHandles = newFileHandles; // Replace existing file handles
+                sortFiles();
+                populateFileList();
+                renderTags();
+            } else {
+                console.log("'Google AI Studio' folder not found.");
+                alert("'Google AI Studio' folder not found in your Google Drive.");
+            }
+        } catch (err) {
+            console.error("Error searching for 'Google AI Studio' folder:", err);
+            alert("Error searching for folder. Check console for details.");
+        }
+    }
+
+    async function loadFolderContents(folderId) {
+        console.log('Loading contents for folder ID:', folderId);
+        try {
+            let files = [];
+            let pageToken = null;
+            do {
+                const res = await gapi.client.drive.files.list({
+                    //q: `'${folderId}' in parents and trashed=false and not (name contains '.png' or name contains '.jpg' or name contains '.pdf' or name contains '.webp' or name contains '.js' or name contains '.zip')`,
+                    q: `'${folderId}' in parents and trashed=false and not (name contains '.png' or name contains '.jpg' or name contains '.pdf' or name contains '.webp' or name contains '.zip')`,
+                    fields: 'files(id, name, modifiedTime), nextPageToken',
+                    pageSize: 1000,
+                    pageToken: pageToken,
+                });
+                files = files.concat(res.result.files);
+                pageToken = res.result.nextPageToken;
+            } while (pageToken);
+
+            console.log('Drive API response files:', files);
+            if (files && files.length > 0) {
+                console.log('Found files:', files);
+                const newFileHandles = files.map(file => ({
+                    id: file.id,
+                    name: file.name,
+                    modifiedTime: new Date(file.modifiedTime).getTime(),
+                    isGoogleDrive: true,
+                }));
+                return newFileHandles;
+            } else {
+                console.log('No files found in the folder.');
+                return [];
+            }
+        } catch (err) {
+            console.error("Error reading folder contents:", err);
+            return [];
+        }
+    }
+
+    async function loadGoogleDriveFileContent(handle) {
+        if (fileCache.has(handle.id)) {
+            const file = fileCache.get(handle.id);
+            handleFileLoad(file);
+            return;
+        }
+
+        try {
+            const fileContentRes = await gapi.client.drive.files.get({
+                fileId: handle.id,
+                alt: 'media',
+            });
+            const fileContent = fileContentRes.body;
+            const file = new File([fileContent], handle.name, {type: "application/json"});
+            fileCache.set(handle.id, file);
+            handleFileLoad(file);
+        } catch (err) {
+            console.error("Error reading file content from Google Drive:", err);
+            alert("Error reading file content from Google Drive.");
+        }
     }
 });

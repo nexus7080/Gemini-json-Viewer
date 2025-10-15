@@ -22,20 +22,25 @@
             <input type="file" id="fileInput" accept=".txt,.json" style="display: none;">
             <label for="fileInput" class="button-like">Load Gemini JSON File</label> <!-- Text updated -->
             <button id="loadFolderBtn" class="button-like">Load Folder</button>
+            <button id="loadFromGoogleDriveBtn" class="button-like">Load from Google Drive</button>
         </div>
     </header>
 
     <div id="container">
         <aside id="file-browser-sidebar">
-            <div class="sidebar-header" style="display: none;">
-                <h2>Files</h2>
+            <div class="sidebar-header">
+                <h2 style="display: none;">Files</h2>
+                <div id="sort-buttons">
+                    <button id="sort-alpha-btn" class="button-like active">Alphabetically</button>
+                    <button id="sort-date-btn" class="button-like">By Modified Date</button>
+                </div>
             </div>
             <div id="file-list">
                 <p class="placeholder">Load a folder to see files.</p>
             </div>
             <div id="tags-section">
                 <div id="tags-list">
-                    <p class="placeholder">No tags yet.</p>
+                    <p class="placeholder" style="display: none;">No tags yet.</p>
                 </div>
             </div>
         </aside>
